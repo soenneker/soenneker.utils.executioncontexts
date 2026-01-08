@@ -14,7 +14,7 @@
         <Version Condition="'$(BUILD_VERSION)' != ''">$(BUILD_VERSION)</Version>
         <AssemblyName>Soenneker.Utils.ExecutionContexts</AssemblyName>
         <PackageId>Soenneker.Utils.ExecutionContexts</PackageId>
-        <PackageTags>utils executioncontexts state invocation action async func task offload inline valuetask executioncontextutil object csharp dotnet c# .net</PackageTags>
+        <PackageTags>utils executioncontexts state invocation action async func task offload inline valuetask executioncontextutil object csharp dotnet c# .net executioncontext</PackageTags>
         <Copyright>Copyright © 2026 Jake Soenneker</Copyright>
         <Authors>Jake Soenneker</Authors>
         <Company>https://soenneker.com</Company>
