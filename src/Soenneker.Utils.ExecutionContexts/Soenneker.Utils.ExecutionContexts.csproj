@@ -46,7 +46,7 @@
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="Soenneker.Invocations.Actions" Version="4.0.7" />
+        <PackageReference Include="Soenneker.Invocations.Actions" Version="4.0.10" />
         <PackageReference Include="Soenneker.Invocations.Funcs" Version="4.0.7" />
     </ItemGroup>
 </Project>
