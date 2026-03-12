@@ -15,7 +15,7 @@
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\..\src\Soenneker.Utils.ExecutionContexts.csproj" />
+        <ProjectReference Include="..\..\src\Soenneker.Utils.ExecutionContexts\Soenneker.Utils.ExecutionContexts.csproj" />
     </ItemGroup>
 
     <ItemGroup>
