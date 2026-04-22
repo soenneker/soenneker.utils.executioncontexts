@@ -1,11 +1,10 @@
-﻿using Soenneker.Tests.Unit;
-using Xunit;
+using Soenneker.Tests.Unit;
 
 namespace Soenneker.Utils.ExecutionContexts.Tests;
 
 public sealed class ExecutionContextUtilTests : UnitTest
 {
-    [Fact]
+    [Test]
     public void Default()
     {
 
