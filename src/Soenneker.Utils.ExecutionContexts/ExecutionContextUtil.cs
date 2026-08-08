@@ -13,6 +13,9 @@ namespace Soenneker.Utils.ExecutionContexts;
 /// </summary>
 public sealed class ExecutionContextUtil
 {
+    private readonly record struct ActionWorkItem<TState>(Action<TState> Action, TState State, TaskCompletionSource Completion);
+    private readonly record struct FuncWorkItem<TState, TResult>(Func<TState, TResult> Func, TState State, TaskCompletionSource<TResult> Completion);
+
     /// <summary>
     /// Determines whether the current thread is associated with a synchronization context.
     /// </summary>
@@ -54,6 +57,35 @@ public sealed class ExecutionContextUtil
         return ValueTask.CompletedTask;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static ValueTask RunInlineOrOffload<TState>(Action<TState> action, TState state, CancellationToken cancellationToken = default)
+    {
+        if (cancellationToken.IsCancellationRequested)
+            return ValueTask.FromCanceled(cancellationToken);
+
+        if (!OnSynchronizationContext())
+        {
+            action(state);
+            return ValueTask.CompletedTask;
+        }
+
+        var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        ThreadPool.UnsafeQueueUserWorkItem(static item =>
+        {
+            try
+            {
+                item.Action(item.State);
+                item.Completion.SetResult();
+            }
+            catch (Exception exception)
+            {
+                item.Completion.SetException(exception);
+            }
+        }, new ActionWorkItem<TState>(action, state, completion), preferLocal: false);
+
+        return new ValueTask(completion.Task);
+    }
+
     /// <summary>
     /// Executes the specified function either inline or offloads it to the thread pool, depending on the current
     /// synchronization context and cancellation state.
@@ -82,5 +114,31 @@ public sealed class ExecutionContextUtil
         }
 
         return new ValueTask<T>(func(state));
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static ValueTask<TResult> RunInlineOrOffload<TState, TResult>(Func<TState, TResult> func, TState state,
+        CancellationToken cancellationToken = default)
+    {
+        if (cancellationToken.IsCancellationRequested)
+            return ValueTask.FromCanceled<TResult>(cancellationToken);
+
+        if (!OnSynchronizationContext())
+            return new ValueTask<TResult>(func(state));
+
+        var completion = new TaskCompletionSource<TResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+        ThreadPool.UnsafeQueueUserWorkItem(static item =>
+        {
+            try
+            {
+                item.Completion.SetResult(item.Func(item.State));
+            }
+            catch (Exception exception)
+            {
+                item.Completion.SetException(exception);
+            }
+        }, new FuncWorkItem<TState, TResult>(func, state, completion), preferLocal: false);
+
+        return new ValueTask<TResult>(completion.Task);
     }
 }
