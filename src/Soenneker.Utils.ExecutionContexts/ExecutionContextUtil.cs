@@ -3,8 +3,6 @@ using System.Diagnostics.Contracts;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
-using Soenneker.Invocations.Actions;
-using Soenneker.Invocations.Funcs;
 
 namespace Soenneker.Utils.ExecutionContexts;
 
@@ -13,9 +11,6 @@ namespace Soenneker.Utils.ExecutionContexts;
 /// </summary>
 public sealed class ExecutionContextUtil
 {
-    private readonly record struct ActionWorkItem<TState>(Action<TState> Action, TState State, TaskCompletionSource Completion);
-    private readonly record struct FuncWorkItem<TState, TResult>(Func<TState, TResult> Func, TState State, TaskCompletionSource<TResult> Completion);
-
     /// <summary>
     /// Determines whether the current thread is associated with a synchronization context.
     /// </summary>
@@ -40,23 +35,20 @@ public sealed class ExecutionContextUtil
     /// <returns>A ValueTask that represents the execution of the action. The task is completed when the action has finished
     /// executing, or is canceled if the cancellation token is already canceled.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static ValueTask RunInlineOrOffload(Action<object?> action, object? state, CancellationToken cancellationToken = default)
-    {
-        if (cancellationToken.IsCancellationRequested)
-            return ValueTask.FromCanceled(cancellationToken);
+    public static ValueTask RunInlineOrOffload(Action<object?> action, object? state, CancellationToken cancellationToken = default) =>
+        RunInlineOrOffload<object?>(action, state, cancellationToken);
 
-        if (OnSynchronizationContext())
-        {
-            Task task = Task.Factory.StartNew(static s => ((ActionInvocation)s!).Invoke(), new ActionInvocation(action, state), cancellationToken,
-                TaskCreationOptions.DenyChildAttach, TaskScheduler.Default);
-
-            return new ValueTask(task);
-        }
-
-        action(state);
-        return ValueTask.CompletedTask;
-    }
-
+    /// <summary>
+    /// Executes an action inline when no synchronization context is present; otherwise, queues it to the thread pool.
+    /// </summary>
+    /// <remarks>
+    /// Cancellation is observed before execution begins. Work queued to the thread pool does not flow the current execution context.
+    /// </remarks>
+    /// <typeparam name="TState">The type of state passed to the action.</typeparam>
+    /// <param name="action">The action to execute.</param>
+    /// <param name="state">The state passed to <paramref name="action"/>.</param>
+    /// <param name="cancellationToken">A token used to cancel the operation before it begins.</param>
+    /// <returns>A task-like value representing completion of the action.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static ValueTask RunInlineOrOffload<TState>(Action<TState> action, TState state, CancellationToken cancellationToken = default)
     {
@@ -69,21 +61,9 @@ public sealed class ExecutionContextUtil
             return ValueTask.CompletedTask;
         }
 
-        var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        ThreadPool.UnsafeQueueUserWorkItem(static item =>
-        {
-            try
-            {
-                item.Action(item.State);
-                item.Completion.SetResult();
-            }
-            catch (Exception exception)
-            {
-                item.Completion.SetException(exception);
-            }
-        }, new ActionWorkItem<TState>(action, state, completion), preferLocal: false);
-
-        return new ValueTask(completion.Task);
+        var workItem = new ActionWorkItem<TState>(action, state);
+        ThreadPool.UnsafeQueueUserWorkItem(workItem, preferLocal: false);
+        return workItem.Task;
     }
 
     /// <summary>
@@ -100,22 +80,21 @@ public sealed class ExecutionContextUtil
     /// <returns>A ValueTask representing the result of the function execution. If the operation is canceled before execution,
     /// the ValueTask is in a canceled state.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static ValueTask<T> RunInlineOrOffload<T>(Func<object?, T> func, object? state, CancellationToken cancellationToken = default)
-    {
-        if (cancellationToken.IsCancellationRequested)
-            return ValueTask.FromCanceled<T>(cancellationToken);
+    public static ValueTask<T> RunInlineOrOffload<T>(Func<object?, T> func, object? state, CancellationToken cancellationToken = default) =>
+        RunInlineOrOffload<object?, T>(func, state, cancellationToken);
 
-        if (OnSynchronizationContext())
-        {
-            Task<T> task = Task.Factory.StartNew(static s => ((FuncInvocation<T>)s!).Invoke(), new FuncInvocation<T>(func, state), cancellationToken,
-                TaskCreationOptions.DenyChildAttach, TaskScheduler.Default);
-
-            return new ValueTask<T>(task);
-        }
-
-        return new ValueTask<T>(func(state));
-    }
-
+    /// <summary>
+    /// Executes a function inline when no synchronization context is present; otherwise, queues it to the thread pool.
+    /// </summary>
+    /// <remarks>
+    /// Cancellation is observed before execution begins. Work queued to the thread pool does not flow the current execution context.
+    /// </remarks>
+    /// <typeparam name="TState">The type of state passed to the function.</typeparam>
+    /// <typeparam name="TResult">The type of result returned by the function.</typeparam>
+    /// <param name="func">The function to execute.</param>
+    /// <param name="state">The state passed to <paramref name="func"/>.</param>
+    /// <param name="cancellationToken">A token used to cancel the operation before it begins.</param>
+    /// <returns>A task-like value representing the function's result.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static ValueTask<TResult> RunInlineOrOffload<TState, TResult>(Func<TState, TResult> func, TState state,
         CancellationToken cancellationToken = default)
@@ -126,19 +105,8 @@ public sealed class ExecutionContextUtil
         if (!OnSynchronizationContext())
             return new ValueTask<TResult>(func(state));
 
-        var completion = new TaskCompletionSource<TResult>(TaskCreationOptions.RunContinuationsAsynchronously);
-        ThreadPool.UnsafeQueueUserWorkItem(static item =>
-        {
-            try
-            {
-                item.Completion.SetResult(item.Func(item.State));
-            }
-            catch (Exception exception)
-            {
-                item.Completion.SetException(exception);
-            }
-        }, new FuncWorkItem<TState, TResult>(func, state, completion), preferLocal: false);
-
-        return new ValueTask<TResult>(completion.Task);
+        var workItem = new FuncWorkItem<TState, TResult>(func, state);
+        ThreadPool.UnsafeQueueUserWorkItem(workItem, preferLocal: false);
+        return workItem.Task;
     }
 }
