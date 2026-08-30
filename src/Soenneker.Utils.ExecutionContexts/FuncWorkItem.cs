@@ -9,12 +9,14 @@ internal sealed class FuncWorkItem<TState, TResult> : IThreadPoolWorkItem, IValu
 {
     private readonly Func<TState, TResult> _func;
     private readonly TState _state;
+    private readonly CancellationToken _cancellationToken;
     private ManualResetValueTaskSourceCore<TResult> _source;
 
-    internal FuncWorkItem(Func<TState, TResult> func, TState state)
+    internal FuncWorkItem(Func<TState, TResult> func, TState state, CancellationToken cancellationToken)
     {
         _func = func;
         _state = state;
+        _cancellationToken = cancellationToken;
         _source.RunContinuationsAsynchronously = true;
     }
 
@@ -24,6 +26,7 @@ internal sealed class FuncWorkItem<TState, TResult> : IThreadPoolWorkItem, IValu
     {
         try
         {
+            _cancellationToken.ThrowIfCancellationRequested();
             _source.SetResult(_func(_state));
         }
         catch (Exception exception)

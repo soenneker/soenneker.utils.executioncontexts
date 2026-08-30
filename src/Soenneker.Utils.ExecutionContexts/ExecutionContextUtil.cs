@@ -61,7 +61,7 @@ public sealed class ExecutionContextUtil
             return ValueTask.CompletedTask;
         }
 
-        var workItem = new ActionWorkItem<TState>(action, state);
+        var workItem = new ActionWorkItem<TState>(action, state, cancellationToken);
         ThreadPool.UnsafeQueueUserWorkItem(workItem, preferLocal: false);
         return workItem.Task;
     }
@@ -105,7 +105,7 @@ public sealed class ExecutionContextUtil
         if (!OnSynchronizationContext())
             return new ValueTask<TResult>(func(state));
 
-        var workItem = new FuncWorkItem<TState, TResult>(func, state);
+        var workItem = new FuncWorkItem<TState, TResult>(func, state, cancellationToken);
         ThreadPool.UnsafeQueueUserWorkItem(workItem, preferLocal: false);
         return workItem.Task;
     }

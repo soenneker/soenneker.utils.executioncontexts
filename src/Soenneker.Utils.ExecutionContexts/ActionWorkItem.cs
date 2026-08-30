@@ -9,12 +9,14 @@ internal sealed class ActionWorkItem<TState> : IThreadPoolWorkItem, IValueTaskSo
 {
     private readonly Action<TState> _action;
     private readonly TState _state;
+    private readonly CancellationToken _cancellationToken;
     private ManualResetValueTaskSourceCore<bool> _source;
 
-    internal ActionWorkItem(Action<TState> action, TState state)
+    internal ActionWorkItem(Action<TState> action, TState state, CancellationToken cancellationToken)
     {
         _action = action;
         _state = state;
+        _cancellationToken = cancellationToken;
         _source.RunContinuationsAsynchronously = true;
     }
 
@@ -24,6 +26,7 @@ internal sealed class ActionWorkItem<TState> : IThreadPoolWorkItem, IValueTaskSo
     {
         try
         {
+            _cancellationToken.ThrowIfCancellationRequested();
             _action(_state);
             _source.SetResult(true);
         }
