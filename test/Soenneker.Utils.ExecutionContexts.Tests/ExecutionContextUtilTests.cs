@@ -9,7 +9,7 @@ namespace Soenneker.Utils.ExecutionContexts.Tests;
 public sealed class ExecutionContextUtilTests : UnitTest
 {
     [Test]
-    public async Task RunInlineOrOffload_WithoutSynchronizationContext_RunsInline()
+    public async Task RunInlineOrOffload_WithoutSynchronizationContext_RunsInline(CancellationToken cancellationToken)
     {
         SynchronizationContext? originalContext = SynchronizationContext.Current;
 
@@ -18,7 +18,7 @@ public sealed class ExecutionContextUtilTests : UnitTest
             SynchronizationContext.SetSynchronizationContext(null);
             int callingThread = Environment.CurrentManagedThreadId;
 
-            ValueTask<int> task = ExecutionContextUtil.RunInlineOrOffload(static state => Environment.CurrentManagedThreadId + state, 1);
+            ValueTask<int> task = ExecutionContextUtil.RunInlineOrOffload(static state => Environment.CurrentManagedThreadId + state, 1, cancellationToken: cancellationToken);
 
             await Assert.That(task.IsCompletedSuccessfully).IsTrue();
             await Assert.That(await task).IsEqualTo(callingThread + 1);
@@ -30,7 +30,7 @@ public sealed class ExecutionContextUtilTests : UnitTest
     }
 
     [Test]
-    public async Task RunInlineOrOffload_WithSynchronizationContext_OffloadsAction()
+    public async Task RunInlineOrOffload_WithSynchronizationContext_OffloadsAction(CancellationToken cancellationToken)
     {
         SynchronizationContext? originalContext = SynchronizationContext.Current;
         var holder = new StrongBox<SynchronizationContext?>();
@@ -39,7 +39,7 @@ public sealed class ExecutionContextUtilTests : UnitTest
         try
         {
             SynchronizationContext.SetSynchronizationContext(new SynchronizationContext());
-            task = ExecutionContextUtil.RunInlineOrOffload(static state => { state.Value = SynchronizationContext.Current; }, holder);
+            task = ExecutionContextUtil.RunInlineOrOffload(static state => { state.Value = SynchronizationContext.Current; }, holder, cancellationToken: cancellationToken);
         }
         finally
         {
@@ -51,7 +51,7 @@ public sealed class ExecutionContextUtilTests : UnitTest
     }
 
     [Test]
-    public async Task RunInlineOrOffload_WithSynchronizationContext_ReturnsResult()
+    public async Task RunInlineOrOffload_WithSynchronizationContext_ReturnsResult(CancellationToken cancellationToken)
     {
         SynchronizationContext? originalContext = SynchronizationContext.Current;
         ValueTask<int> task;
@@ -59,7 +59,7 @@ public sealed class ExecutionContextUtilTests : UnitTest
         try
         {
             SynchronizationContext.SetSynchronizationContext(new SynchronizationContext());
-            task = ExecutionContextUtil.RunInlineOrOffload(static state => state * 2, 21);
+            task = ExecutionContextUtil.RunInlineOrOffload(static state => state * 2, 21, cancellationToken: cancellationToken);
         }
         finally
         {
@@ -70,7 +70,7 @@ public sealed class ExecutionContextUtilTests : UnitTest
     }
 
     [Test]
-    public async Task RunInlineOrOffload_WithSynchronizationContext_PropagatesException()
+    public async Task RunInlineOrOffload_WithSynchronizationContext_PropagatesException(CancellationToken cancellationToken)
     {
         SynchronizationContext? originalContext = SynchronizationContext.Current;
         ValueTask task;
@@ -78,7 +78,7 @@ public sealed class ExecutionContextUtilTests : UnitTest
         try
         {
             SynchronizationContext.SetSynchronizationContext(new SynchronizationContext());
-            task = ExecutionContextUtil.RunInlineOrOffload((Action<int>) (static _ => throw new InvalidOperationException("Expected")), 0);
+            task = ExecutionContextUtil.RunInlineOrOffload((Action<int>) (static _ => throw new InvalidOperationException("Expected")), 0, cancellationToken: cancellationToken);
         }
         finally
         {
