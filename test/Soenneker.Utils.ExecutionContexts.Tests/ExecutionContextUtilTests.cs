@@ -9,7 +9,7 @@ namespace Soenneker.Utils.ExecutionContexts.Tests;
 public sealed class ExecutionContextUtilTests : UnitTest
 {
     [Test]
-    public async Task RunInlineOrOffload_WithoutSynchronizationContext_RunsInline(CancellationToken cancellationToken)
+    public async ValueTask RunInlineOrOffload_WithoutSynchronizationContext_RunsInline(CancellationToken cancellationToken)
     {
         SynchronizationContext? originalContext = SynchronizationContext.Current;
 
@@ -30,7 +30,7 @@ public sealed class ExecutionContextUtilTests : UnitTest
     }
 
     [Test]
-    public async Task RunInlineOrOffload_WithSynchronizationContext_OffloadsAction(CancellationToken cancellationToken)
+    public async ValueTask RunInlineOrOffload_WithSynchronizationContext_OffloadsAction(CancellationToken cancellationToken)
     {
         SynchronizationContext? originalContext = SynchronizationContext.Current;
         var holder = new StrongBox<SynchronizationContext?>();
@@ -51,7 +51,7 @@ public sealed class ExecutionContextUtilTests : UnitTest
     }
 
     [Test]
-    public async Task RunInlineOrOffload_WithSynchronizationContext_ReturnsResult(CancellationToken cancellationToken)
+    public async ValueTask RunInlineOrOffload_WithSynchronizationContext_ReturnsResult(CancellationToken cancellationToken)
     {
         SynchronizationContext? originalContext = SynchronizationContext.Current;
         ValueTask<int> task;
@@ -70,7 +70,7 @@ public sealed class ExecutionContextUtilTests : UnitTest
     }
 
     [Test]
-    public async Task RunInlineOrOffload_WithSynchronizationContext_PropagatesException(CancellationToken cancellationToken)
+    public async ValueTask RunInlineOrOffload_WithSynchronizationContext_PropagatesException(CancellationToken cancellationToken)
     {
         SynchronizationContext? originalContext = SynchronizationContext.Current;
         ValueTask task;
@@ -89,7 +89,7 @@ public sealed class ExecutionContextUtilTests : UnitTest
     }
 
     [Test]
-    public async Task RunInlineOrOffload_WithCanceledToken_DoesNotExecute()
+    public async ValueTask RunInlineOrOffload_WithCanceledToken_DoesNotExecute()
     {
         using var cancellationSource = new CancellationTokenSource();
         await cancellationSource.CancelAsync();
