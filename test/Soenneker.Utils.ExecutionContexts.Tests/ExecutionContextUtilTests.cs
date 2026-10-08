@@ -89,7 +89,7 @@ public sealed class ExecutionContextUtilTests : UnitTest
     }
 
     [Test]
-    public async ValueTask RunInlineOrOffload_WithCanceledToken_DoesNotExecute()
+    public async ValueTask RunInlineOrOffload_WithCanceledToken_DoesNotExecute(CancellationToken cancellationToken)
     {
         using var cancellationSource = new CancellationTokenSource();
         await cancellationSource.CancelAsync();
